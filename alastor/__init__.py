@@ -5,6 +5,7 @@ import tempfile
 
 from django.conf import settings
 from django.http import HttpResponse
+from django.shortcuts import redirect
 from django.test.client import Client
 
 class SimulatedRequest(object):
@@ -56,15 +57,48 @@ else:
     profiletask = None
 
 class AlastorMiddleware(object):
-    def process_view(self, request, *args, **kwargs):
-        if ('__alastor__' in request.GET and
-            (request.user.is_superuser or settings.DEBUG)):
+    def _allowed(self, request):
+        if settings.DEBUG:
+            return True
+        user = getattr(request, 'user', None)
+        if user is not None:
+            return user.is_superuser
+        else:
+            return False
+
+    def _profile(self, task_id, request):
+        if task_id == '':
             gprof2dot = getattr(settings, 'ALASTOR_GPROF2DOT', 'gprof2dot')
             srequest = SimulatedRequest(request)
+            result = profiletask.delay(srequest, gprof2dot)
 
-            if profiletask:
-                result = profiletask.delay(srequest, gprof2dot)
-                output = result.get() # XXX
+            query = request.GET.copy()
+            query['__alastor__'] = result.task_id
+            return redirect(request.path + '?' + query.urlencode())
+        else:
+            result = profiletask.AsyncResult(task_id)
+            if not result.ready():
+                return HttpResponse('Still profiling. Refresh in a bit.',
+                                    content_type='text/plain')
             else:
-                output = srequest.profile(gprof2dot)
-            return HttpResponse(output, content_type='application/pdf')
+                return HttpResponse(result.get(),
+                                    content_type='application/pdf')
+
+    def _profilenow(self, request):
+        gprof2dot = getattr(settings, 'ALASTOR_GPROF2DOT', 'gprof2dot')
+        srequest = SimulatedRequest(request)
+        return HttpResponse(srequest.profile(gprof2dot),
+                            content_type='application/pdf')
+
+    def process_view(self, request, *args, **kwargs):
+        if not self._allowed(request):
+            return
+
+        task_id = request.GET.get('__alastor__', None)
+        if task_id is None:
+            return
+
+        if profiletask:
+            return self._profile(task_id, request)
+        else:
+            return self._profilenow(request)
