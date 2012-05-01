@@ -52,7 +52,9 @@ if getattr(settings, 'ALASTOR_CELERY', False):
     from celery.task import task
     @task
     def profiletask(srequest, gprof2dot):
-        return srequest.profile(gprof2dot)
+        with tempfile.NamedTemporaryFile(delete=False) as outfile:
+            outfile.write(srequest.profile(gprof2dot))
+            return outfile.name
 else:
     profiletask = None
 
@@ -81,8 +83,9 @@ class AlastorMiddleware(object):
                 return HttpResponse('Still profiling. Refresh in a bit.',
                                     content_type='text/plain')
             else:
-                return HttpResponse(result.get(),
-                                    content_type='application/pdf')
+                with open(result.get(), 'rb') as outfile:
+                    output = outfile.read()
+                return HttpResponse(output, content_type='application/pdf')
 
     def _profilenow(self, request):
         gprof2dot = getattr(settings, 'ALASTOR_GPROF2DOT', 'gprof2dot')
