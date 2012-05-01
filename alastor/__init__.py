@@ -58,7 +58,7 @@ class AlastorMiddleware(object):
             gprof2dot = getattr(settings, 'ALASTOR_GPROF2DOT', 'gprof2dot')
             method, path, data, headers = distill(request)
 
-            if getattr(settings, 'ALASTOR_CELERY', False):
+            if profiletask:
                 result = profiletask.delay(method, path, data, headers,
                                            gprof2dot)
                 output = result.get() # XXX
