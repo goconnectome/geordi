@@ -3,7 +3,6 @@ import marshal
 import subprocess
 import tempfile
 
-from celery.task import task
 from django.conf import settings
 from django.http import HttpResponse
 from django.test.client import Client
@@ -46,7 +45,11 @@ def distill(request):
 
     return request.method, path, data, headers
 
-profiletask = task(profile)
+if getattr(settings, 'ALASTOR_CELERY', False):
+    from celery.task import task
+    profiletask = task(profile)
+else:
+    profiletask = None
 
 class AlastorMiddleware(object):
     def process_view(self, request, *args, **kwargs):
