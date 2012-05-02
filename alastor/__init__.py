@@ -10,6 +10,8 @@ from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.test.client import Client
 
+__all__ = ['AlastorMiddleware']
+
 class SimulatedRequest(object):
     def __init__(self, request):
         self._method = request.method
