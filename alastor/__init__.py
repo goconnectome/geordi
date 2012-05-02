@@ -65,6 +65,15 @@ else:
     profiletask = None
 
 class AlastorMiddleware(object):
+    _refresh = """<!DOCTYPE html>
+<head>
+<title>Profiling...</title>
+<meta http-equiv=refresh content=3>
+</head>
+<body>
+<p>Profiling...</p>
+"""
+
     def _allowed(self, request):
         if settings.DEBUG:
             return True
@@ -86,8 +95,7 @@ class AlastorMiddleware(object):
         else:
             result = profiletask.AsyncResult(task_id)
             if not result.ready():
-                return HttpResponse('Still profiling. Refresh in a bit.',
-                                    content_type='text/plain')
+                return HttpResponse(self._refresh)
             else:
                 with open(result.get(), 'rb') as outfile:
                     output = outfile.read()
