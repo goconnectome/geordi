@@ -25,9 +25,13 @@ run the profiler in a background `Celery`_ task.
 Installation
 ------------
 
+Before you get started, make sure you have `GraphViz`_ installed.
+
 After you've done ``pip install geordi``, add ``'geordi'`` to the
 ``INSTALLED_APPS`` setting, and add ``'geordi.VisorMiddleware'`` to the
 ``MIDDLEWARE_CLASSES`` setting. You'll probably want to put it after Django's
 authentication middleware and before everything else.
 
 For background profiling with Celery, set ``GEORDI_CELERY = True``.
+
+.. _GraphViz: http://www.graphviz.org/
