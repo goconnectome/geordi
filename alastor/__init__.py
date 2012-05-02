@@ -58,7 +58,8 @@ if getattr(settings, 'ALASTOR_CELERY', False):
     from celery.task import task
     @task
     def profiletask(srequest, options):
-        with tempfile.NamedTemporaryFile(delete=False) as outfile:
+        with tempfile.NamedTemporaryFile(prefix='alastor-', suffix='.pdf',
+                                         delete=False) as outfile:
             outfile.write(srequest.profile(options))
             return outfile.name
 else:
