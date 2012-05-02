@@ -26,12 +26,12 @@ setup(
         'Topic :: Utilities',
     ],
     description='A Django middleware for interactive profiling',
-    download_url='', # XXX
+    download_url='https://bitbucket.org/brodie/geordi/get/master.tar.gz', # XXX
     keywords='django graph profiler',
     license='GNU GPL',
     long_description=long_description(),
     name='geordi',
     packages=['geordi'],
-    url='http://bitheap.org/geordi/',
+    url='https://bitbucket.org/brodie/geordi',
     version='0.1',
 )
