@@ -32,13 +32,13 @@ coverage: tests
 # E301: expected blank line
 # E302: two new lines between functions/etc.
 pep8:
-	pep8 --ignore=E261,E301,E302 --repeat alastor setup.py
+	pep8 --ignore=E261,E301,E302 --repeat geordi setup.py
 
 pyflakes:
-	pyflakes alastor setup.py
+	pyflakes geordi setup.py
 
 pylint:
-	pylint --rcfile=.pylintrc alastor setup.py
+	pylint --rcfile=.pylintrc geordi setup.py
 
 markdown:
 	pandoc -f rst -t markdown README.txt > README.md

@@ -10,7 +10,7 @@ from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.test.client import Client
 
-__all__ = ['AlastorMiddleware']
+__all__ = ['VisorMiddleware']
 
 class SimulatedRequest(object):
     def __init__(self, request):
@@ -21,7 +21,7 @@ class SimulatedRequest(object):
 
         path = request.path
         query = request.GET.copy()
-        query.pop('__alastor__', None)
+        query.pop('__geordi__', None)
         query = query.urlencode()
         if query:
             path += '?' + query
@@ -56,18 +56,18 @@ class SimulatedRequest(object):
                 raise Exception # XXX
         return output
 
-if getattr(settings, 'ALASTOR_CELERY', False):
+if getattr(settings, 'GEORDI_CELERY', False):
     from celery.task import task
     @task
     def profiletask(srequest, options):
-        with tempfile.NamedTemporaryFile(prefix='alastor-', suffix='.pdf',
+        with tempfile.NamedTemporaryFile(prefix='geordi-', suffix='.pdf',
                                          delete=False) as outfile:
             outfile.write(srequest.profile(options))
             return outfile.name
 else:
     profiletask = None
 
-class AlastorMiddleware(object):
+class VisorMiddleware(object):
     _refresh = """<!DOCTYPE html>
 <head>
 <title>Profiling...</title>
@@ -88,12 +88,12 @@ class AlastorMiddleware(object):
 
     def _profile(self, task_id, request):
         if task_id == '':
-            options = getattr(settings, 'ALASTOR_GPROF2DOT_OPTIONS', '')
+            options = getattr(settings, 'GEORDI_GPROF2DOT_OPTIONS', '')
             srequest = SimulatedRequest(request)
             result = profiletask.delay(srequest, options)
 
             query = request.GET.copy()
-            query['__alastor__'] = result.task_id
+            query['__geordi__'] = result.task_id
             return redirect(request.path + '?' + query.urlencode())
         else:
             result = profiletask.AsyncResult(task_id)
@@ -105,7 +105,7 @@ class AlastorMiddleware(object):
                 return HttpResponse(output, content_type='application/pdf')
 
     def _profilenow(self, request):
-        options = getattr(settings, 'ALASTOR_GPROF2DOT_OPTIONS', '')
+        options = getattr(settings, 'GEORDI_GPROF2DOT_OPTIONS', '')
         srequest = SimulatedRequest(request)
         return HttpResponse(srequest.profile(options),
                             content_type='application/pdf')
@@ -114,7 +114,7 @@ class AlastorMiddleware(object):
         if not self._allowed(request):
             return
 
-        task_id = request.GET.get('__alastor__', None)
+        task_id = request.GET.get('__geordi__', None)
         if task_id is None:
             return
 

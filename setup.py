@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Installs alastor"""
+"""Installs geordi"""
 
 import os
 import sys
@@ -30,8 +30,8 @@ setup(
     keywords='django graph profiler',
     license='GNU GPL',
     long_description=long_description(),
-    name='alastor',
-    packages=['alastor'],
-    url='http://bitheap.org/alastor/',
+    name='geordi',
+    packages=['geordi'],
+    url='http://bitheap.org/geordi/',
     version='0.1',
 )
