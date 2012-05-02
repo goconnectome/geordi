@@ -4,7 +4,7 @@
 
 Geordi is a `Django`_ `middleware`_ that lets you interactively profile your
 site. Add ``?__geordi__`` to any URL, browse to it, and you'll get a PDF
-showing the request's call graph and the time spent in each time.
+showing the request's call graph and the time spent in each call.
 
 If you've set ``DEBUG = True`` in your `Django settings`_, anyone can profile
 a page–even anonymous users. With ``DEBUG = False``, only super users can
