@@ -26,7 +26,8 @@ setup(
         'Topic :: Utilities',
     ],
     description='A Django middleware for interactive profiling',
-    download_url='https://bitbucket.org/brodie/geordi/get/master.tar.gz', # XXX
+    # XXX: This should eventually point to a released tag.
+    download_url='https://bitbucket.org/brodie/geordi/get/master.tar.gz',
     keywords='django graph profiler',
     license='GNU GPL',
     long_description=long_description(),
