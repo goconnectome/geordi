@@ -32,13 +32,13 @@ coverage: tests
 # E301: expected blank line
 # E302: two new lines between functions/etc.
 pep8:
-	pep8 --ignore=E261,E301,E302 --repeat geordi setup.py
+	pep8 --ignore=E261,E301,E302 --repeat geordi/__init__.py setup.py
 
 pyflakes:
-	pyflakes geordi setup.py
+	pyflakes geordi/__init__.py setup.py
 
 pylint:
-	pylint --rcfile=.pylintrc geordi setup.py
+	pylint --rcfile=.pylintrc geordi/__init__.py setup.py
 
 markdown:
 	pandoc -f rst -t markdown README.txt > README.md
