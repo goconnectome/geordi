@@ -1,6 +1,8 @@
 import cProfile
 import marshal
+import os
 import subprocess
+import sys
 import tempfile
 
 from django.conf import settings
@@ -23,7 +25,7 @@ class SimulatedRequest(object):
             path += '?' + query
         self._path = path
 
-    def profile(self, gprof2dot='gprof2dot'):
+    def profile(self, options=''):
         client = Client()
         callback = {'GET': client.get,
                     'POST': client.post,
@@ -36,11 +38,15 @@ class SimulatedRequest(object):
         profiler.runcall(callback, self._path, self._data, **self._headers)
         profiler.create_stats()
 
+        # XXX
+        gprof2dot = os.path.join(os.path.dirname(__file__), '_gprof2dot.py')
+
         with tempfile.NamedTemporaryFile() as stats:
             stats.write(marshal.dumps(profiler.stats))
             stats.flush()
-            proc = subprocess.Popen('%s -f pstats %s | dot -Tpdf' # XXX
-                                    % (gprof2dot, stats.name),
+            proc = subprocess.Popen('%s %s %s -f pstats %s | dot -Tpdf' # XXX
+                                    % (sys.executable, gprof2dot, options,
+                                       stats.name),
                                     shell=True, stdin=subprocess.PIPE,
                                     stdout=subprocess.PIPE)
             output = proc.communicate()[0]
@@ -51,9 +57,9 @@ class SimulatedRequest(object):
 if getattr(settings, 'ALASTOR_CELERY', False):
     from celery.task import task
     @task
-    def profiletask(srequest, gprof2dot):
+    def profiletask(srequest, options):
         with tempfile.NamedTemporaryFile(delete=False) as outfile:
-            outfile.write(srequest.profile(gprof2dot))
+            outfile.write(srequest.profile(options))
             return outfile.name
 else:
     profiletask = None
@@ -70,9 +76,9 @@ class AlastorMiddleware(object):
 
     def _profile(self, task_id, request):
         if task_id == '':
-            gprof2dot = getattr(settings, 'ALASTOR_GPROF2DOT', 'gprof2dot')
+            options = getattr(settings, 'ALASTOR_GPROF2DOT_OPTIONS', '')
             srequest = SimulatedRequest(request)
-            result = profiletask.delay(srequest, gprof2dot)
+            result = profiletask.delay(srequest, options)
 
             query = request.GET.copy()
             query['__alastor__'] = result.task_id
@@ -88,9 +94,9 @@ class AlastorMiddleware(object):
                 return HttpResponse(output, content_type='application/pdf')
 
     def _profilenow(self, request):
-        gprof2dot = getattr(settings, 'ALASTOR_GPROF2DOT', 'gprof2dot')
+        options = getattr(settings, 'ALASTOR_GPROF2DOT_OPTIONS', '')
         srequest = SimulatedRequest(request)
-        return HttpResponse(srequest.profile(gprof2dot),
+        return HttpResponse(srequest.profile(options),
                             content_type='application/pdf')
 
     def process_view(self, request, *args, **kwargs):
