@@ -57,17 +57,13 @@ class HoloRequest(object):
         profiler.runcall(callback, self._path, self._data, **self._headers)
         profiler.create_stats()
 
-        # XXX: Bundling gprof2dot isn't ideal.
-        gprof2dot = os.path.join(os.path.dirname(__file__), '_gprof2dot.py')
-
         with tempfile.NamedTemporaryFile() as stats:
             stats.write(marshal.dumps(profiler.stats))
             stats.flush()
             # XXX: Formatting a shell string like this isn't ideal.
-            proc = subprocess.Popen('%s %s %s -f pstats %s | dot -Tpdf'
-                                    % (sys.executable, gprof2dot, options,
-                                       stats.name),
-                                    shell=True, stdin=subprocess.PIPE,
+            cmd = ('gprof2dot.py %s -f pstats %s | dot -Tpdf'
+                   % (options, stats.name))
+            proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
                                     stdout=subprocess.PIPE)
             output = proc.communicate()[0]
             retcode = proc.poll()

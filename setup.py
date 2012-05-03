@@ -26,8 +26,12 @@ setup(
         'Topic :: Utilities',
     ],
     description='A Django middleware for interactive profiling',
+    dependency_links=[
+        'https://bitbucket.org/brodie/gprof2dot/get/097c7cca29882a7de789dbc27069a4bb4f8fc5b0.tar.gz#egg=gprof2dot-dev'
+    ],
     # XXX: This should eventually point to a released tag.
     download_url='https://bitbucket.org/brodie/geordi/get/master.tar.gz',
+    install_requires=['gprof2dot==dev'],
     keywords='django graph profiler',
     license='GNU GPL',
     long_description=long_description(),
