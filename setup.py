@@ -17,7 +17,8 @@ setup(
         'Environment :: Web Environment',
         'Framework :: Django',
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: GNU General Public License (GPL)',
+        ('License :: OSI Approved :: '
+         'GNU Lesser General Public License v2 (LGPLv2)'),
         'Natural Language :: English',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
@@ -33,7 +34,7 @@ setup(
     download_url='https://bitbucket.org/brodie/geordi/get/master.tar.gz',
     install_requires=['gprof2dot==dev'],
     keywords='django graph profiler',
-    license='GNU GPL',
+    license='GNU Lesser GPL',
     long_description=long_description(),
     name='geordi',
     packages=['geordi'],
