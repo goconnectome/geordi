@@ -28,7 +28,7 @@ setup(
     ],
     description='A Django middleware for interactive profiling',
     dependency_links=[
-        'https://bitbucket.org/brodie/gprof2dot/get/097c7cca29882a7de789dbc27069a4bb4f8fc5b0.tar.gz#egg=gprof2dot-dev'
+        'https://bitbucket.org/brodie/gprof2dot/get/3d61cf0a321e06edc252d45e135ffea2bd16c1cc.tar.gz#egg=gprof2dot-dev'
     ],
     download_url='https://bitbucket.org/brodie/geordi/get/0.1.tar.gz',
     install_requires=['gprof2dot==dev'],
