@@ -14,6 +14,10 @@ If you're running your Django site under a server like `Gunicorn`_ and you've
 configured `time limits on requests`_, you can set ``GEORDI_CELERY = True`` to
 run the profiler in a background `Celery`_ task.
 
+If you're running multiple front-end servers and need PDFs to be saved
+to a shared directory, set ``GEORDI_OUTPUT_DIR``. If it's not set, the
+temporary directory provided by the system is used.
+
 .. _Django: https://www.djangoproject.com/
 .. _middleware: https://docs.djangoproject.com/en/dev/topics/http/middleware/
 .. _Django settings: https://docs.djangoproject.com/en/dev/topics/settings/

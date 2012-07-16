@@ -77,7 +77,9 @@ if getattr(settings, 'GEORDI_CELERY', False):
     @task
     def profiletask(srequest, options):
         """Profile a request in a background Celery task"""
+        outputdir = getattr(settings, 'GEORDI_OUTPUT_DIR', None)
         with tempfile.NamedTemporaryFile(prefix='geordi-', suffix='.pdf',
+                                         dir=outputdir,
                                          delete=False) as outfile:
             outfile.write(srequest.profile(options))
             return outfile.name
