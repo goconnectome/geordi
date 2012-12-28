@@ -7,7 +7,7 @@ from distutils.core import setup
 
 def long_description():
     """Get the long description from the README"""
-    return open(os.path.join(sys.path[0], 'README.txt')).read()
+    return open(os.path.join(sys.path[0], 'README.rst')).read()
 
 setup(
     author='Brodie Rao',
