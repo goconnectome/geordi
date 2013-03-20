@@ -10,7 +10,7 @@ import tempfile
 from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import redirect
-from django.test.client import Client
+from django.test.client import Client, MULTIPART_CONTENT
 
 __all__ = ['VisorMiddleware']
 
@@ -32,8 +32,16 @@ class HoloRequest(object):
         self._method = request.method
         self._headers = dict([(k, v) for (k, v) in request.META.iteritems()
                               if k.startswith('HTTP_')])
-        # XXX: Handle raw POST bodies
-        self._data = dict((k, request.POST[k]) for k in request.POST)
+
+        ctype = request.META.get('HTTP_CONTENT_TYPE',
+                                 request.META.get('CONTENT_TYPE'))
+        if (ctype == 'application/x-www-form-urlencoded' or
+            ctype.startswith('multipart/')):
+            self._data = dict((k, request.POST[k]) for k in request.POST)
+            self._data_type = MULTIPART_CONTENT
+        else:
+            self._data = request.raw_post_data
+            self._data_type = ctype
 
         path = request.path
         query = request.GET.copy()
@@ -54,7 +62,8 @@ class HoloRequest(object):
                     'DELETE': client.delete}[self._method]
 
         profiler = cProfile.Profile()
-        profiler.runcall(callback, self._path, self._data, **self._headers)
+        profiler.runcall(callback, self._path, self._data, self._data_type,
+                         **self._headers)
         profiler.create_stats()
 
         with tempfile.NamedTemporaryFile() as stats:
