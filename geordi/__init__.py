@@ -65,19 +65,21 @@ class HoloRequest(object):
                          **self._headers)
         profiler.create_stats()
 
-        with tempfile.NamedTemporaryFile() as stats:
+        outputdir = getattr(settings, 'GEORDI_OUTPUT_DIR', None)
+        with tempfile.NamedTemporaryFile(prefix='geordi-', suffix='.pstats',
+                                         dir=outputdir, delete=False) as stats:
             stats.write(marshal.dumps(profiler.stats))
-            stats.flush()
-            # XXX: Formatting a shell string like this isn't ideal.
-            cmd = ('gprof2dot.py %s -f pstats %s | dot -Tpdf'
-                   % (options, stats.name))
-            proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
-                                    stdout=subprocess.PIPE)
-            output = proc.communicate()[0]
-            retcode = proc.poll()
-            if retcode:
-                raise HolodeckException('gprof2dot/dot exited with %d'
-                                        % retcode)
+
+        # XXX: Formatting a shell string like this isn't ideal.
+        cmd = ('gprof2dot.py %s -f pstats %s | dot -Tpdf'
+                % (options, stats.name))
+        proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE)
+        output = proc.communicate()[0]
+        retcode = proc.poll()
+        if retcode:
+            raise HolodeckException('gprof2dot/dot exited with %d'
+                                    % retcode)
         return output
 
 if getattr(settings, 'GEORDI_CELERY', False):
