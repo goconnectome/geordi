@@ -2,9 +2,7 @@
 
 import cProfile
 import marshal
-import os
 import subprocess
-import sys
 import tempfile
 
 from django.conf import settings
