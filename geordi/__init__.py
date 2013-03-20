@@ -69,10 +69,11 @@ class HoloRequest(object):
         with tempfile.NamedTemporaryFile(prefix='geordi-', suffix='.pstats',
                                          dir=outputdir, delete=False) as stats:
             stats.write(marshal.dumps(profiler.stats))
+            statsfn = stats.name
 
         # XXX: Formatting a shell string like this isn't ideal.
         cmd = ('gprof2dot.py %s -f pstats %s | dot -Tpdf'
-                % (options, stats.name))
+                % (options, statsfn))
         proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE)
         output = proc.communicate()[0]
@@ -80,7 +81,7 @@ class HoloRequest(object):
         if retcode:
             raise HolodeckException('gprof2dot/dot exited with %d'
                                     % retcode)
-        return output
+        return statsfn, output
 
 if getattr(settings, 'GEORDI_CELERY', False):
     from celery.task import task
@@ -91,9 +92,11 @@ if getattr(settings, 'GEORDI_CELERY', False):
         with tempfile.NamedTemporaryFile(prefix='geordi-', suffix='.pdf',
                                          dir=outputdir,
                                          delete=False) as outfile:
-            outfile.write(srequest.profile(options))
-            return {'filename': outfile.name,
-                    'hostname': profiletask.request.hostname}
+            statsfn, output = srequest.profile(options)
+            outfile.write(output)
+            return {'hostname': profiletask.request.hostname,
+                    'pdf': outfile.name,
+                    'pstats': statsfn}
 else:
     profiletask = None
 
@@ -142,19 +145,23 @@ class VisorMiddleware(object):
                 return HttpResponse(self._refresh)
             else:
                 resultdata = result.get()
-                with open(resultdata['filename'], 'rb') as outfile:
+                with open(resultdata['pdf'], 'rb') as outfile:
                     output = outfile.read()
                 response = HttpResponse(output, content_type='application/pdf')
                 response['X-Geordi-Served-By'] = resultdata['hostname']
+                response['X-Geordi-PDF-Filename'] = resultdata['pdf']
+                response['X-Geordi-Pstats-Filename'] = resultdata['pstats']
                 return response
 
     def _profilenow(self, request):
         """Profile the request in-process"""
         options = getattr(settings, 'GEORDI_GPROF2DOT_OPTIONS', '')
         srequest = HoloRequest(request)
-        response = HttpResponse(srequest.profile(options),
+        statsfn, output = srequest.profile(options)
+        response = HttpResponse(output,
                                 content_type='application/pdf')
         response['X-Geordi-Served-By'] = socket.gethostname()
+        response['X-Geordi-Pstats-Filename'] = statsfn
         return response
 
     def process_view(self, request, *args, **kwargs):
