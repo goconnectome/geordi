@@ -33,7 +33,8 @@ class HoloRequest(object):
                               if k.startswith('HTTP_')])
 
         ctype = request.META.get('HTTP_CONTENT_TYPE',
-                                 request.META.get('CONTENT_TYPE'))
+                                 request.META.get('CONTENT_TYPE',
+                                                  MULTIPART_CONTENT))
         if (ctype == 'application/x-www-form-urlencoded' or
             ctype.startswith('multipart/')):
             self._data = dict((k, request.POST[k]) for k in request.POST)
