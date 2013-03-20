@@ -2,6 +2,7 @@
 
 import cProfile
 import marshal
+import socket
 import subprocess
 import tempfile
 
@@ -89,7 +90,8 @@ if getattr(settings, 'GEORDI_CELERY', False):
                                          dir=outputdir,
                                          delete=False) as outfile:
             outfile.write(srequest.profile(options))
-            return outfile.name
+            return {'filename': outfile.name,
+                    'hostname': profiletask.request.hostname}
 else:
     profiletask = None
 
@@ -137,16 +139,21 @@ class VisorMiddleware(object):
             if not result.ready():
                 return HttpResponse(self._refresh)
             else:
-                with open(result.get(), 'rb') as outfile:
+                resultdata = result.get()
+                with open(resultdata['filename'], 'rb') as outfile:
                     output = outfile.read()
-                return HttpResponse(output, content_type='application/pdf')
+                response = HttpResponse(output, content_type='application/pdf')
+                response['X-Geordi-Served-By'] = resultdata['hostname']
+                return response
 
     def _profilenow(self, request):
         """Profile the request in-process"""
         options = getattr(settings, 'GEORDI_GPROF2DOT_OPTIONS', '')
         srequest = HoloRequest(request)
-        return HttpResponse(srequest.profile(options),
-                            content_type='application/pdf')
+        response = HttpResponse(srequest.profile(options),
+                                content_type='application/pdf')
+        response['X-Geordi-Served-By'] = socket.gethostname()
+        return response
 
     def process_view(self, request, *args, **kwargs):
         """Handle view bypassing/profiling"""
