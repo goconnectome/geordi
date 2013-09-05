@@ -65,9 +65,8 @@ class HoloRequest(object):
                          **self._headers)
         profiler.create_stats()
 
-        outputdir = getattr(settings, 'GEORDI_OUTPUT_DIR', None)
         with tempfile.NamedTemporaryFile(prefix='geordi-', suffix='.pstats',
-                                         dir=outputdir, delete=False) as stats:
+                                         delete=False) as stats:
             stats.write(marshal.dumps(profiler.stats))
             statsfn = stats.name
 

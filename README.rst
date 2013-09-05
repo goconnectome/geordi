@@ -10,10 +10,6 @@ If you've set ``DEBUG = True`` in your `Django settings`_, anyone can profile
 a page–even anonymous users. With ``DEBUG = False``, only super users can
 profile pages.
 
-If you're running multiple front-end servers and need PDFs to be saved
-to a shared directory, set ``GEORDI_OUTPUT_DIR``. If it's not set, the
-temporary directory provided by the system is used.
-
 .. _Django: https://www.djangoproject.com/
 .. _middleware: https://docs.djangoproject.com/en/dev/topics/http/middleware/
 .. _Django settings: https://docs.djangoproject.com/en/dev/topics/settings/
