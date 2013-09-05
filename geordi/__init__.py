@@ -8,7 +8,6 @@ import tempfile
 
 from django.conf import settings
 from django.http import HttpResponse
-from django.shortcuts import redirect
 from django.test.client import Client, MULTIPART_CONTENT
 
 __all__ = ['VisorMiddleware']
@@ -84,23 +83,6 @@ class HoloRequest(object):
                                     % retcode)
         return statsfn, output
 
-if getattr(settings, 'GEORDI_CELERY', False):
-    from celery.task import task
-    @task
-    def profiletask(srequest, options):
-        """Profile a request in a background Celery task"""
-        outputdir = getattr(settings, 'GEORDI_OUTPUT_DIR', None)
-        with tempfile.NamedTemporaryFile(prefix='geordi-', suffix='.pdf',
-                                         dir=outputdir,
-                                         delete=False) as outfile:
-            statsfn, output = srequest.profile(options)
-            outfile.write(output)
-            return {'hostname': profiletask.request.hostname,
-                    'pdf': outfile.name,
-                    'pstats': statsfn}
-else:
-    profiletask = None
-
 class VisorMiddleware(object):
     """Interactive profiling middleware.
 
@@ -110,15 +92,6 @@ class VisorMiddleware(object):
     Note that this only runs if settings.DEBUG is True or if the current user
     is a super user.
     """
-
-    _refresh = """<!DOCTYPE html>
-<head>
-<title>Profiling...</title>
-<meta http-equiv=refresh content=3>
-</head>
-<body>
-<p>Profiling...</p>
-"""
 
     def _allowed(self, request):
         """Return whether or not the middleware should run"""
@@ -130,31 +103,7 @@ class VisorMiddleware(object):
         else:
             return False
 
-    def _profile(self, task_id, request):
-        """Profile the request asynchronously"""
-        if task_id == '':
-            options = getattr(settings, 'GEORDI_GPROF2DOT_OPTIONS', '')
-            srequest = HoloRequest(request)
-            result = profiletask.delay(srequest, options)
-
-            query = request.GET.copy()
-            query['__geordi__'] = result.task_id
-            return redirect(request.path + '?' + query.urlencode())
-        else:
-            result = profiletask.AsyncResult(task_id)
-            if not result.ready():
-                return HttpResponse(self._refresh)
-            else:
-                resultdata = result.get()
-                with open(resultdata['pdf'], 'rb') as outfile:
-                    output = outfile.read()
-                response = HttpResponse(output, content_type='application/pdf')
-                response['X-Geordi-Served-By'] = resultdata['hostname']
-                response['X-Geordi-PDF-Filename'] = resultdata['pdf']
-                response['X-Geordi-Pstats-Filename'] = resultdata['pstats']
-                return response
-
-    def _profilenow(self, request):
+    def _profile(self, request):
         """Profile the request in-process"""
         options = getattr(settings, 'GEORDI_GPROF2DOT_OPTIONS', '')
         srequest = HoloRequest(request)
@@ -167,14 +116,5 @@ class VisorMiddleware(object):
 
     def process_view(self, request, *args, **kwargs):
         """Handle view bypassing/profiling"""
-        if not self._allowed(request):
-            return
-
-        task_id = request.GET.get('__geordi__', None)
-        if task_id is None:
-            return
-
-        if profiletask:
-            return self._profile(task_id, request)
-        else:
-            return self._profilenow(request)
+        if '__geordi__' in request.GET and self._allowed(request):
+            return self._profile(request)
