@@ -2,10 +2,15 @@
 
 import cProfile
 import marshal
+import optparse
+import os
 import socket
 import subprocess
+import sys
 import tempfile
 import urlparse
+import webbrowser
+from wsgiref.simple_server import make_server
 
 __all__ = ['HolodeckException', 'VisorMiddleware']
 
@@ -21,9 +26,10 @@ class VisorMiddleware(object):
     Note that this only runs if settings.DEBUG is True or if the current user
     is a super user.
     """
-    def __init__(self, app=None, allowedfunc=lambda environ: True):
+    def __init__(self, app=None, allowedfunc=None):
         self._app = app
-        self._allowed = allowedfunc
+        if allowedfunc is not None:
+            self._allowed = allowedfunc
 
     def _response(self, profiler):
         profiler.create_stats()
@@ -49,10 +55,13 @@ class VisorMiddleware(object):
                    ('X-Geordi-Pstats-Filename', statsfn)]
         return headers, output
 
-    def __call__(self, environ, start_response):
+    def _allowed(self, environ):
         qs = urlparse.parse_qs(environ['QUERY_STRING'],
                                keep_blank_values=True)
-        if '__geordi__' not in qs or not self._allowed(environ):
+        return '__geordi__' in qs
+
+    def __call__(self, environ, start_response):
+        if not self._allowed(environ):
             return self._app(environ, start_response)
 
         def dummy_start_response(status, response_headers, exc_info=None):
@@ -97,3 +106,26 @@ class VisorMiddleware(object):
         for name, value in headers:
             profresponse[name] = value
         return profresponse
+
+def main(args):
+    p = optparse.OptionParser(usage='geordi SCRIPT...', prog='geordi')
+    opts, args = p.parse_args(args)
+    if not args:
+        sys.stdout.write(p.get_usage())
+        return 2
+
+    script = args[0]
+    sys.argv[:] = args
+    sys.path.insert(0, os.path.dirname(script))
+
+    def app(environ, start_response):
+        execfile(script, {'__file__': script, '__name__': '__main__',
+                          '__package__': None})
+
+    app = VisorMiddleware(app, allowedfunc=lambda environ: True)
+    server = make_server('localhost', 41000, app)
+    webbrowser.open('http://localhost:41000')
+    server.handle_request()
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))
