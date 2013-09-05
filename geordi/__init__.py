@@ -5,9 +5,7 @@ import marshal
 import socket
 import subprocess
 import tempfile
-
-from django.conf import settings
-from django.http import HttpResponse
+import urlparse
 
 __all__ = ['VisorMiddleware']
 
@@ -23,28 +21,11 @@ class VisorMiddleware(object):
     Note that this only runs if settings.DEBUG is True or if the current user
     is a super user.
     """
+    def __init__(self, app=None, allowedfunc=lambda environ: True):
+        self._app = app
+        self._allowed = allowedfunc
 
-    def _allowed(self, request):
-        """Return whether or not the middleware should run"""
-        if settings.DEBUG:
-            return True
-        user = getattr(request, 'user', None)
-        if user is not None:
-            return user.is_superuser
-        else:
-            return False
-
-    def process_request(self, request):
-        if '__geordi__' in request.GET and self._allowed(request):
-            request._geordi = cProfile.Profile()
-            request._geordi.enable()
-
-    def process_response(self, request, response):
-        profiler = getattr(request, '_geordi', None)
-        if profiler is None:
-            return response
-
-        profiler.disable()
+    def _response(self, profiler):
         profiler.create_stats()
 
         with tempfile.NamedTemporaryFile(prefix='geordi-', suffix='.pstats',
@@ -63,8 +44,56 @@ class VisorMiddleware(object):
             raise HolodeckException('gprof2dot/dot exited with %d'
                                     % retcode)
 
-        profresponse = HttpResponse(output,
-                                    content_type='application/pdf')
-        profresponse['X-Geordi-Served-By'] = socket.gethostname()
-        profresponse['X-Geordi-Pstats-Filename'] = statsfn
+        headers = [('Content-Type', 'application/pdf'),
+                   ('X-Geordi-Served-By', socket.gethostname()),
+                   ('X-Geordi-Pstats-Filename', statsfn)]
+        return headers, output
+
+    def __call__(self, environ, start_response):
+        qs = urlparse.parse_qs(environ['QUERY_STRING'],
+                               keep_blank_values=True)
+        if '__geordi__' not in qs or not self._allowed(environ):
+            return self._app(environ, start_response)
+
+        def dummy_start_response(status, response_headers, exc_info=None):
+            pass
+
+        profiler = cProfile.Profile()
+        profiler.runcall(self._app, environ, dummy_start_response)
+        headers, output = self._response(profiler)
+        start_response('200 OK', headers)
+        return [output]
+
+    def _djangoallowed(self, request):
+        """Return whether or not the middleware should run"""
+        from django.conf import settings
+        if settings.DEBUG:
+            return True
+
+        user = getattr(request, 'user', None)
+        if user is not None:
+            return user.is_superuser
+        else:
+            return False
+
+    def process_request(self, request):
+        if ('__geordi__' not in request.GET or
+            not self._djangoallowed(request)):
+            return
+
+        request._geordi = cProfile.Profile()
+        request._geordi.enable()
+
+    def process_response(self, request, response):
+        profiler = getattr(request, '_geordi', None)
+        if profiler is None:
+            return response
+
+        profiler.disable()
+        headers, output = self._response(profiler)
+
+        from django.http import HttpResponse
+        profresponse = HttpResponse(output)
+        for name, value in headers:
+            profresponse[name] = value
         return profresponse
