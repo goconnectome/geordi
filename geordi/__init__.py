@@ -8,9 +8,13 @@ import socket
 import subprocess
 import sys
 import tempfile
-import urlparse
 import webbrowser
 from wsgiref.simple_server import make_server
+
+try:
+    from urllib.parse import parse_qs
+except ImportError:
+    from urlparse import parse_qs
 
 __all__ = ['HolodeckException', 'VisorMiddleware']
 
@@ -56,8 +60,7 @@ class VisorMiddleware(object):
         return headers, output
 
     def _allowed(self, environ):
-        qs = urlparse.parse_qs(environ['QUERY_STRING'],
-                               keep_blank_values=True)
+        qs = parse_qs(environ['QUERY_STRING'], keep_blank_values=True)
         return '__geordi__' in qs
 
     def __call__(self, environ, start_response):
@@ -118,9 +121,13 @@ def main(args):
     sys.argv[:] = args
     sys.path.insert(0, os.path.dirname(script))
 
+    with open(script, 'rb') as f:
+        code = compile(f.read(), script, 'exec')
+    globs = {'__file__': script,
+             '__name__': '__main__',
+             '__package__': None}
     def app(environ, start_response):
-        execfile(script, {'__file__': script, '__name__': '__main__',
-                          '__package__': None})
+        eval(code, globs)
 
     app = VisorMiddleware(app, allowedfunc=lambda environ: True)
     server = make_server('localhost', 41000, app)
