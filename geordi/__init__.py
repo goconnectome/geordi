@@ -50,7 +50,7 @@ class HoloRequest(object):
             path += '?' + query
         self._path = path
 
-    def profile(self, options=''):
+    def profile(self):
         """Profile the request and return a PDF of the call graph"""
         client = Client()
         callback = {'GET': client.get,
@@ -71,8 +71,8 @@ class HoloRequest(object):
             statsfn = stats.name
 
         # XXX: Formatting a shell string like this isn't ideal.
-        cmd = ('gprof2dot.py %s -f pstats %s | dot -Tpdf'
-                % (options, statsfn))
+        cmd = ('gprof2dot.py -f pstats %s | dot -Tpdf'
+                % statsfn)
         proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE)
         output = proc.communicate()[0]
@@ -104,9 +104,8 @@ class VisorMiddleware(object):
 
     def _profile(self, request):
         """Profile the request in-process"""
-        options = getattr(settings, 'GEORDI_GPROF2DOT_OPTIONS', '')
         srequest = HoloRequest(request)
-        statsfn, output = srequest.profile(options)
+        statsfn, output = srequest.profile()
         response = HttpResponse(output,
                                 content_type='application/pdf')
         response['X-Geordi-Served-By'] = socket.gethostname()
