@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 import urlparse
 
-__all__ = ['VisorMiddleware']
+__all__ = ['HolodeckException', 'VisorMiddleware']
 
 class HolodeckException(Exception):
     """Captain, the holodeck's malfunctioning again!"""
