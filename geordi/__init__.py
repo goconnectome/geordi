@@ -8,79 +8,11 @@ import tempfile
 
 from django.conf import settings
 from django.http import HttpResponse
-from django.test.client import Client, MULTIPART_CONTENT
 
 __all__ = ['VisorMiddleware']
 
 class HolodeckException(Exception):
     """Captain, the holodeck's malfunctioning again!"""
-
-class HoloRequest(object):
-    """A simulated, test client request that Celery can pickle.
-
-    This tries to copy everything off of a real request object in order to
-    replay it with the Django test client.
-    """
-
-    def __init__(self, request):
-        """Initialize a HoloRequest.
-
-        request should be a Django request object.
-        """
-        self._method = request.method
-        self._headers = dict([(k, v) for (k, v) in request.META.iteritems()
-                              if k.startswith('HTTP_')])
-
-        ctype = request.META.get('HTTP_CONTENT_TYPE',
-                                 request.META.get('CONTENT_TYPE',
-                                                  MULTIPART_CONTENT))
-        if (ctype == 'application/x-www-form-urlencoded' or
-            ctype.startswith('multipart/')):
-            self._data = dict((k, request.POST[k]) for k in request.POST)
-            self._data_type = MULTIPART_CONTENT
-        else:
-            self._data = request.raw_post_data
-            self._data_type = ctype
-
-        path = request.path
-        query = request.GET.copy()
-        query.pop('__geordi__', None)
-        query = query.urlencode()
-        if query:
-            path += '?' + query
-        self._path = path
-
-    def profile(self):
-        """Profile the request and return a PDF of the call graph"""
-        client = Client()
-        callback = {'GET': client.get,
-                    'POST': client.post,
-                    'HEAD': client.head,
-                    'OPTIONS': client.options,
-                    'PUT': client.put,
-                    'DELETE': client.delete}[self._method]
-
-        profiler = cProfile.Profile()
-        profiler.runcall(callback, self._path, self._data, self._data_type,
-                         **self._headers)
-        profiler.create_stats()
-
-        with tempfile.NamedTemporaryFile(prefix='geordi-', suffix='.pstats',
-                                         delete=False) as stats:
-            stats.write(marshal.dumps(profiler.stats))
-            statsfn = stats.name
-
-        # XXX: Formatting a shell string like this isn't ideal.
-        cmd = ('gprof2dot.py -f pstats %s | dot -Tpdf'
-                % statsfn)
-        proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE)
-        output = proc.communicate()[0]
-        retcode = proc.poll()
-        if retcode:
-            raise HolodeckException('gprof2dot/dot exited with %d'
-                                    % retcode)
-        return statsfn, output
 
 class VisorMiddleware(object):
     """Interactive profiling middleware.
@@ -102,17 +34,37 @@ class VisorMiddleware(object):
         else:
             return False
 
-    def _profile(self, request):
-        """Profile the request in-process"""
-        srequest = HoloRequest(request)
-        statsfn, output = srequest.profile()
-        response = HttpResponse(output,
-                                content_type='application/pdf')
-        response['X-Geordi-Served-By'] = socket.gethostname()
-        response['X-Geordi-Pstats-Filename'] = statsfn
-        return response
-
-    def process_view(self, request, *args, **kwargs):
-        """Handle view bypassing/profiling"""
+    def process_request(self, request):
         if '__geordi__' in request.GET and self._allowed(request):
-            return self._profile(request)
+            request._geordi = cProfile.Profile()
+            request._geordi.enable()
+
+    def process_response(self, request, response):
+        profiler = getattr(request, '_geordi', None)
+        if profiler is None:
+            return response
+
+        profiler.disable()
+        profiler.create_stats()
+
+        with tempfile.NamedTemporaryFile(prefix='geordi-', suffix='.pstats',
+                                         delete=False) as stats:
+            stats.write(marshal.dumps(profiler.stats))
+            statsfn = stats.name
+
+        # XXX: Formatting a shell string like this isn't ideal.
+        cmd = ('gprof2dot.py -f pstats %s | dot -Tpdf'
+                % statsfn)
+        proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE)
+        output = proc.communicate()[0]
+        retcode = proc.poll()
+        if retcode:
+            raise HolodeckException('gprof2dot/dot exited with %d'
+                                    % retcode)
+
+        profresponse = HttpResponse(output,
+                                    content_type='application/pdf')
+        profresponse['X-Geordi-Served-By'] = socket.gethostname()
+        profresponse['X-Geordi-Pstats-Filename'] = statsfn
+        return profresponse
