@@ -1,13 +1,10 @@
 """A Django middleware for interactive profiling"""
 
-import cProfile
-import marshal
 import optparse
 import os
+import pprint
 import socket
-import subprocess
 import sys
-import tempfile
 import webbrowser
 from wsgiref.simple_server import make_server
 
@@ -15,6 +12,8 @@ try:
     from urllib.parse import parse_qs
 except ImportError:
     from urlparse import parse_qs
+
+from geordi._profiler import Profiler
 
 __all__ = ['HolodeckException', 'VisorMiddleware']
 
@@ -36,27 +35,9 @@ class VisorMiddleware(object):
             self._allowed = allowedfunc
 
     def _response(self, profiler):
-        profiler.create_stats()
-
-        with tempfile.NamedTemporaryFile(prefix='geordi-', suffix='.pstats',
-                                         delete=False) as stats:
-            stats.write(marshal.dumps(profiler.stats))
-            statsfn = stats.name
-
-        # XXX: Formatting a shell string like this isn't ideal.
-        cmd = ('gprof2dot.py -f pstats %s | dot -Tpdf'
-                % statsfn)
-        proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE)
-        output = proc.communicate()[0]
-        retcode = proc.poll()
-        if retcode:
-            raise HolodeckException('gprof2dot/dot exited with %d'
-                                    % retcode)
-
-        headers = [('Content-Type', 'application/pdf'),
-                   ('X-Geordi-Served-By', socket.gethostname()),
-                   ('X-Geordi-Pstats-Filename', statsfn)]
+        headers = [('Content-Type', 'text/plain'),
+                   ('X-Geordi-Served-By', socket.gethostname())]
+        output = pprint.pformat(profiler.callees)
         return headers, output
 
     def _allowed(self, environ):
@@ -70,7 +51,7 @@ class VisorMiddleware(object):
         def dummy_start_response(status, response_headers, exc_info=None):
             pass
 
-        profiler = cProfile.Profile()
+        profiler = Profiler()
         profiler.runcall(self._app, environ, dummy_start_response)
         headers, output = self._response(profiler)
         start_response('200 OK', headers)
@@ -93,7 +74,7 @@ class VisorMiddleware(object):
             not self._djangoallowed(request)):
             return
 
-        request._geordi = cProfile.Profile()
+        request._geordi = Profiler()
         request._geordi.enable()
 
     def process_response(self, request, response):
