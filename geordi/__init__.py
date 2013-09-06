@@ -37,7 +37,8 @@ class VisorMiddleware(object):
     def _response(self, profiler):
         headers = [('Content-Type', 'text/plain'),
                    ('X-Geordi-Served-By', socket.gethostname())]
-        output = pprint.pformat(profiler.callees)
+        stats = profiler.stats()
+        output = pprint.pformat(stats)
         return headers, output
 
     def _allowed(self, environ):
