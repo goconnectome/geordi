@@ -33,6 +33,5 @@ setup(
     name='geordi',
     packages=['geordi'],
     scripts=['scripts/geordi'],
-    url='https://bitbucket.org/brodie/geordi',
     version='0.3',
 )
