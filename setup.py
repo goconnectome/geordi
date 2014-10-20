@@ -30,8 +30,6 @@ setup(
     dependency_links=[
         'https://bitbucket.org/brodie/gprof2dot/get/3d61cf0a321e06edc252d45e135ffea2bd16c1cc.tar.gz#egg=gprof2dot-dev'
     ],
-    download_url='https://bitbucket.org/brodie/geordi/get/0.3.tar.gz',
-    install_requires=['gprof2dot==dev'],
     keywords='django graph profiler',
     license='GNU Lesser GPL',
     long_description=long_description(),
